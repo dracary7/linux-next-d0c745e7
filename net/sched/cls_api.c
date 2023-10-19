@@ -41,6 +41,8 @@
 #include <net/tc_act/tc_gate.h>
 #include <net/flow_offload.h>
 
+#include <linux/helper.h>
+
 extern const struct nla_policy rtm_tca_policy[TCA_MAX + 1];
 
 /* The list of all installed classifier types */
@@ -1975,7 +1977,7 @@ static int tc_new_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 	int tp_created;
 	bool rtnl_held = false;
 	u32 flags;
-
+	my_helper();
 	if (!netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 

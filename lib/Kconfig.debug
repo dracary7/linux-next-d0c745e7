@@ -206,6 +206,10 @@ config DEBUG_BUGVERBOSE
 	  of the BUG call as well as the EIP and oops trace.  This aids
 	  debugging but costs about 70-100K of memory.
 
+config MY_HELPER
+	bool "My helper: please help me"
+	default y
+
 endmenu # "printk and dmesg options"
 
 config DEBUG_KERNEL
