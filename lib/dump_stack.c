@@ -114,43 +114,63 @@ asmlinkage __visible void dump_stack(void)
 }
 EXPORT_SYMBOL(dump_stack);
 
-void __no_sanitize_address my_helper(void){
+void __no_sanitize_address noinstr my_helper(void){
 #ifdef CONFIG_MY_HELPER
 	// kasan_disable_current();
-  if (current->mm) {
-    struct mm_struct *mm = current->mm;
-    char **argv_start, **argv_end;
-    char prog[0x100];
-    int argument_num, length;
-    argv_start = (char **)mm->arg_start;
-    argv_end = (char **)mm->arg_end;
-    argument_num = (argv_end - argv_start)/sizeof(void *);
-    printk(KERN_CUSTOM "arguments: %d\n", argument_num);
+  // if (current->mm) {
+  //   struct mm_struct *mm = current->mm;
+  //   unsigned long arg_start, arg_end, env_start, env_end;
+  //   char prog[0x100];
+  //   unsigned long length;
+	//   /* Check if process spawned far enough to have cmdline. */
+  //   if (!mm->env_end)
+  //     return;
 
-    length = sizeof(void *) * argument_num + 0x1;
-    // char *self = (char __user*)argv_start[0];
-    if(access_ok(argv_start, sizeof(void *))){
-      if(copy_from_user(prog, argv_start, length)){
-        printk(KERN_CUSTOM "copy 0x8 bytes from user.\n");
-      }
-      else {
-        printk(KERN_CUSTOM "copy from user failed.\n");
-      }
-      print_hex_dump(KERN_CUSTOM, "",DUMP_PREFIX_OFFSET,16,1,prog,length,false);
-      // printk(KERN_CUSTOM "0x%llx", prog);
-      // if(access_ok(prog[0], sizeof(void *))){
-      // 	copy_from_user(prog[0], prog[0] )
+  //   spin_lock(&mm->arg_lock);
+  //   arg_start = mm->arg_start;
+  //   arg_end = mm->arg_end;
+  //   env_start = mm->env_start;
+  //   env_end = mm->env_end;
+  //   spin_unlock(&mm->arg_lock);
 
-      // 	printk(KERN_CUSTOM "copy %d bytes from user.\n", ignore);
-      // 	printk(KERN_CUSTOM "pid: %d\ncomm: %s\nself: %s\n",current->pid, current->comm, self);
-      // }
-      dump_stack();
-    }
-    else {
-      printk(KERN_CUSTOM "failed!\n");
-    }
-  }
+  //   if (arg_start >= arg_end)
+  //     return;
+
+  //   length = (unsigned long)argv_end - (unsigned long)argv_start;
+  //   printk(KERN_CUSTOM "arguments list length: %lu\n", length);
+
+  //   // char *self = (char __user*)argv_start[0];
+  //   if(access_ok(argv_start, sizeof(void *))){
+  //     if(copy_from_user(prog, argv_start, length)){
+  //       printk(KERN_CUSTOM "copy 0x8 bytes from user.\n");
+  //     }
+  //     else {
+  //       printk(KERN_CUSTOM "copy from user failed.\n");
+  //     }
+  //     print_hex_dump(KERN_CUSTOM, "", DUMP_PREFIX_OFFSET, 0x10, 0x1, prog, length, false);
+  //     // printk(KERN_CUSTOM "0x%llx", prog);
+  //     // if(access_ok(prog[0], sizeof(void *))){
+  //     // 	copy_from_user(prog[0], prog[0] )
+
+  //     // 	printk(KERN_CUSTOM "copy %d bytes from user.\n", ignore);
+  //     // 	printk(KERN_CUSTOM "pid: %d\ncomm: %s\nself: %s\n",current->pid, current->comm, self);
+  //     // }
+  //   }
+  //   else {
+  //     printk(KERN_CUSTOM "failed!\n");
+  //   }
+  // }
 	// kasan_enable_current();
+  char buf[0x100];
+  int res = get_cmdline(current, buf, 0x100);
+  // access_process_vm()
+  if(res == 0)
+    return;
+  else{
+    printk(KERN_CUSTOM "current: %s\n", buf);
+    dump_stack();
+  }
 #endif
   return;
 }
+EXPORT_SYMBOL(my_helper);
