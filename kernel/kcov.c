@@ -24,6 +24,7 @@
 #include <linux/refcount.h>
 #include <linux/log2.h>
 #include <asm/setup.h>
+#include <asm/unwind.h>
 
 #define kcov_debug(fmt, ...) pr_debug("%s: " fmt, __func__, ##__VA_ARGS__)
 
@@ -207,6 +208,9 @@ void notrace __sanitizer_cov_trace_pc(void)
 		area[pos] = ip;
 		WRITE_ONCE(area[0], pos);
 	}
+#ifdef KCOV_ENABLE_CALLTRACE
+	__sanitizer_cov_trace_calltrace()
+#endif
 }
 EXPORT_SYMBOL(__sanitizer_cov_trace_pc);
 
@@ -324,6 +328,106 @@ void notrace __sanitizer_cov_trace_switch(u64 val, u64 *cases)
 }
 EXPORT_SYMBOL(__sanitizer_cov_trace_switch);
 #endif /* ifdef CONFIG_KCOV_ENABLE_COMPARISONS */
+
+#ifdef KCOV_ENABLE_CALLTRACE
+void notrace __sanitizer_cov_trace_calltrace(void){
+	struct task_struct *task = current;
+	struct pt_regs *regs;
+	unsigned long *stack;
+	struct unwind_state state;
+	struct stack_info stack_info = {0};
+	unsigned long visit_mask = 0;
+	bool partial = false;
+	const char *log_lvl = KERN_CUSTOM;
+
+	unwind_start(&state, task, regs, stack);
+	stack = stack ? : get_stack_pointer(task, regs);
+	regs = unwind_get_entry_regs(&state, &partial);
+
+	for ( ; stack; stack = PTR_ALIGN(stack_info.next_sp, sizeof(long))) {
+		const char *stack_name;
+
+		if (get_stack_info(stack, task, &stack_info, &visit_mask)) {
+			/*
+			 * We weren't on a valid stack.  It's possible that
+			 * we overflowed a valid stack into a guard page.
+			 * See if the next page up is valid so that we can
+			 * generate some kind of backtrace if this happens.
+			 */
+			stack = (unsigned long *)PAGE_ALIGN((unsigned long)stack);
+			if (get_stack_info(stack, task, &stack_info, &visit_mask))
+				break;
+		}
+
+		stack_name = stack_type_name(stack_info.type);
+		if (stack_name)
+			printk("%s <%s>\n", log_lvl, stack_name);
+
+		// if (regs)
+			// show_reg_if_on_stack(&stack_info, regs, partial, log_lvl);
+
+		/*
+		 * Scan the stack, printing any text addresses we find.  At the
+		 * same time, follow proper stack frames with the unwinder.
+		 *
+		 * Addresses found during the scan which are not reported by
+		 * the unwinder are considered to be additional clues which are
+		 * sometimes useful for debugging and are prefixed with '?'.
+		 * This also serves as a failsafe option in case the unwinder
+		 * goes off in the weeds.
+		 */
+		for (; stack < stack_info.end; stack++) {
+			unsigned long real_addr;
+			int reliable = 0;
+			unsigned long addr = READ_ONCE_NOCHECK(*stack);
+			unsigned long *ret_addr_p =
+				unwind_get_return_address_ptr(&state);
+
+			if (!__kernel_text_address(addr))
+				continue;
+
+			/*
+			 * Don't print regs->ip again if it was already printed
+			 * by show_regs_if_on_stack().
+			 */
+			if (regs && stack == &regs->ip)
+				goto next;
+
+			if (stack == ret_addr_p)
+				reliable = 1;
+
+			// guess no useful
+			// real_addr = ftrace_graph_ret_addr(task, &graph_idx,
+			// 				  addr, stack);
+			// if (real_addr != addr)
+			// 	printk_stack_address(addr, 0, log_lvl);
+			// printk_stack_address(real_addr, reliable, log_lvl);
+			printk("%s %s%pBb\n", log_lvl, reliable ? "" : "? ", (void *)real_addr);
+
+			if (!reliable)
+				continue;
+
+next:
+			/*
+			 * Get the next frame from the unwinder.  No need to
+			 * check for an error: if anything goes wrong, the rest
+			 * of the addresses will just be printed as unreliable.
+			 */
+			unwind_next_frame(&state);
+
+			/* if the frame has entry regs, print them */
+			regs = unwind_get_entry_regs(&state, &partial);
+			// if (regs)
+			// 	show_regs_if_on_stack(&stack_info, regs, partial, log_lvl);
+		}
+
+		if (stack_name)
+			printk("%s </%s>\n", log_lvl, stack_name);
+	}
+	return;
+}
+EXPORT_SYMBOL(__sanitizer_cov_trace_calltrace);
+#endif
 
 static void kcov_start(struct task_struct *t, struct kcov *kcov,
 			unsigned int size, void *area, enum kcov_mode mode,

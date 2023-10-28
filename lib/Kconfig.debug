@@ -2049,6 +2049,12 @@ config KCOV_ENABLE_COMPARISONS
 	  These operands can be used by fuzzing engines to improve the quality
 	  of fuzzing coverage.
 
+config KCOV_ENABLE_CALLTRACE
+	bool "Enable calltrace collection by KCOV"
+	depends on KCOV
+	help
+		my helper for calltrace recording
+
 config KCOV_INSTRUMENT_ALL
 	bool "Instrument all code by default"
 	depends on KCOV

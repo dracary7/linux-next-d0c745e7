@@ -391,7 +391,7 @@ static int u32_init(struct tcf_proto *tp)
 static int u32_destroy_key(struct tc_u_knode *n, bool free_pf)
 {
 	struct tc_u_hnode *ht = rtnl_dereference(n->ht_down);
-	my_helper();
+	// my_helper();
 	tcf_exts_destroy(&n->exts);
 	tcf_exts_put_net(&n->exts);
 	if (ht && --ht->refcnt == 0)
@@ -855,7 +855,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	u32 htid, userflags = 0;
 	size_t sel_size;
 	int err;
-	my_helper();
+	// my_helper();
 	if (!opt) {
 		if (handle) {
 			NL_SET_ERR_MSG_MOD(extack, "Filter handle requires options");

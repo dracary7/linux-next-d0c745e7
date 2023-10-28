@@ -1977,7 +1977,7 @@ static int tc_new_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 	int tp_created;
 	bool rtnl_held = false;
 	u32 flags;
-	my_helper();
+	// my_helper();
 	if (!netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 

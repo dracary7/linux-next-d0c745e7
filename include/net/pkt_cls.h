@@ -252,7 +252,7 @@ static inline bool tcf_exts_get_net(struct tcf_exts *exts)
 
 static inline void tcf_exts_put_net(struct tcf_exts *exts)
 {
-	my_helper();
+	// my_helper();
 #ifdef CONFIG_NET_CLS_ACT
 	if (exts->net)
 		put_net_track(exts->net, &exts->ns_tracker);
