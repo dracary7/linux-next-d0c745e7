@@ -187,15 +187,23 @@ static notrace unsigned long canonicalize_ip(unsigned long ip)
 	return ip;
 }
 
-#ifdef CONFIG_KCOV_ENABLE_IPTFUNC
-static notrace unsigned long __sanitizer_cov_tag_iptfunc(unsigned long ip, int flags){
+/*options for sancov options*/
+#define SANCOV_FUNCHEADER 0x1
+#define SANCOV_FUNCIPT 0x2
+#define SANCOV_FUNCIPT_MASK 0xFFFFC
 
-	unsigned tmp = ip;
+#ifdef CONFIG_KCOV_ENABLE_IPTFUNC
+/*
+Entry point for trace import function
+Implementing
+*/
+static inline notrace unsigned long __sanitizer_cov_tag_iptfunc(unsigned long ip, int flags){
 	int ipt_idx = flags & SANCOV_FUNCIPT_MASK;
-	if(ipt_idx)
-		tmp = (ipt_idx<<32) + (ip&0xffffffff);
-	else
-		tmp = ip & 0xffffffff;
+	unsigned long tmp = ((ip<<32)>>32) & 0xffffffff;
+	if( flags & SANCOV_FUNCIPT){
+		if(ipt_idx)
+			tmp = ((unsigned long)ipt_idx<<32) + tmp;
+	}
 	return tmp;
 }
 #endif
@@ -275,9 +283,6 @@ EXPORT_SYMBOL(__sanitizer_cov_trace_calltrace);
 
 void notrace __sanitizer_cov_trace_pc(int flags)
 {
-#define SANCOV_FUNCHEADER 0x1
-#define SANCOV_FUNCIPT 0x2
-#define SANCOV_FUNCIPT_MASK 0xFFFFC
 
 	struct task_struct *t;
 	unsigned long *area;
@@ -295,19 +300,17 @@ void notrace __sanitizer_cov_trace_pc(int flags)
 	pos = READ_ONCE(area[0]) + 1;
 	if (likely(pos < t->kcov_size)) {
 #ifdef CONFIG_KCOV_ENABLE_IPTFUNC
-		if (flags & SANCOV_FUNCIPT)
-			ip = __sanitizer_cov_trace_iptfunc(ip, flags)
+		ip = __sanitizer_cov_tag_iptfunc(ip, flags);
 #endif
 		area[pos] = ip;
 		WRITE_ONCE(area[0], pos);
 	}
 
-
-
 #ifdef CONFIG_KCOV_ENABLE_CALLTRACE
-	if (flags & SANCOV_FUNCHEADER)
+	if (flags & SANCOV_FUNCHEADER){
 		// for extra ?
-		__sanitizer_cov_trace_calltrace();
+		// __sanitizer_cov_trace_calltrace();
+	}
 #endif
 }
 EXPORT_SYMBOL(__sanitizer_cov_trace_pc);
