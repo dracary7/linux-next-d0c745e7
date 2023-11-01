@@ -200,15 +200,15 @@ Implementing
 static inline notrace unsigned long __sanitizer_cov_tag_iptfunc(unsigned long ip, int flags){
 	int ipt_idx = flags & SANCOV_FUNCIPT_MASK;
 	unsigned long tmp = ((ip<<32)>>32) & 0xffffffff;
-	if( flags & SANCOV_FUNCIPT){
-		if(ipt_idx)
-			tmp = ((unsigned long)ipt_idx<<32) + tmp;
+	if(flags & SANCOV_FUNCIPT){
+		tmp = ((unsigned long)(ipt_idx+1)<<32) + tmp;
 	}
 	return tmp;
 }
 #endif
 
 #ifdef CONFIG_KCOV_ENABLE_CALLTRACE
+
 /*
 Entry point for trace calltrace
 Implementing
@@ -267,7 +267,6 @@ next:
 			/* if the frame has entry regs, print them */
 			regs = unwind_get_entry_regs(&state, &partial);
 		}
-
 		if (stack_name)
 			printk("%s </%s>\n", log_lvl, stack_name);
 	}
@@ -288,8 +287,6 @@ void notrace __sanitizer_cov_trace_pc(int flags)
 	unsigned long *area;
 	unsigned long ip = canonicalize_ip(_RET_IP_);
 	unsigned long pos;
-
-	// printk(KERN_CUSTOM"%d\n", flags);
 
 	t = current;
 	if (!check_kcov_mode(KCOV_MODE_TRACE_PC, t))
