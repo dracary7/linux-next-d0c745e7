@@ -198,11 +198,9 @@ Entry point for trace import function
 Implementing
 */
 static inline notrace unsigned long __sanitizer_cov_tag_iptfunc(unsigned long ip, int flags){
-	int ipt_idx = flags & SANCOV_FUNCIPT_MASK;
-	unsigned long tmp = ((ip<<32)>>32) & 0xffffffff;
-	if(flags & SANCOV_FUNCIPT){
-		tmp = ((unsigned long)(ipt_idx+1)<<32) + tmp;
-	}
+	unsigned long tmp = ip;
+	if(flags & SANCOV_FUNCIPT)
+		tmp = ((flags & SANCOV_FUNCIPT_MASK)<<32) + (((ip << 32) >> 32) & 0xffffffff);
 	return tmp;
 }
 #endif

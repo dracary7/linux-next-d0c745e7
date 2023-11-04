@@ -2056,7 +2056,7 @@ config KCOV_ENABLE_CALLTRACE
 		my helper for calltrace recording
 
 config KCOV_ENABLE_IPTFUNC
-	bool "Enable import function tag by KCOV"
+	bool "Enable important function tag by KCOV"
 	depends on KCOV
 	help
 		my helper for ipt func taging
